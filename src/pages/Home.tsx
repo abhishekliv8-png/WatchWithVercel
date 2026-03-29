@@ -75,7 +75,7 @@ export default function Home() {
         creatorName: name,
         createdAt: new Date().toISOString(),
         status: "waiting",
-        expectedParticipants: expectedParticipants === null ? null : expectedParticipants,
+        expectedParticipants: (expectedParticipants || 0) + 1,
       });
 
       const prefRef = doc(db, "sessions", sessionId, "preferences", "creator");

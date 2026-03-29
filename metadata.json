@@ -1,0 +1,5 @@
+{
+  "name": "WatchWith",
+  "description": "A group movie night picker. Create a session, share with friends, and get recommendations based on everyone's preferences.",
+  "requestFramePermissions": []
+}

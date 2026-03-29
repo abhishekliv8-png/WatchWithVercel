@@ -67,6 +67,7 @@ export default function Session() {
   const [calculating, setCalculating] = useState(false);
   const [drumroll, setDrumroll] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("Copied!");
   const [randomBackdrop, setRandomBackdrop] = useState<string | null>(null);
 
   // Feedback Toast State
@@ -260,7 +261,7 @@ export default function Session() {
   }, [sessionId, userId]);
 
   useEffect(() => {
-    if (session?.status === "waiting" && session?.expectedParticipants === 0 && userId === "creator" && preferences.length > 0) {
+    if (session?.status === "waiting" && session?.expectedParticipants === 1 && userId === "creator" && preferences.length > 0) {
       console.log("Solo night detected, auto-starting picking phase...");
       startPicking();
     }
@@ -515,21 +516,22 @@ export default function Session() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, message: string = "Copied!") => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
+        setCopyMessage(message);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 4000);
       }).catch(err => {
         console.error("Failed to copy:", err);
-        fallbackCopyToClipboard(text);
+        fallbackCopyToClipboard(text, message);
       });
     } else {
-      fallbackCopyToClipboard(text);
+      fallbackCopyToClipboard(text, message);
     }
   };
 
-  const fallbackCopyToClipboard = (text: string) => {
+  const fallbackCopyToClipboard = (text: string, message: string = "Copied!") => {
     try {
       const textArea = document.createElement("textarea");
       textArea.value = text;
@@ -542,22 +544,58 @@ export default function Session() {
       const successful = document.execCommand('copy');
       document.body.removeChild(textArea);
       if (successful) {
+        setCopyMessage(message);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        setTimeout(() => setCopied(false), 4000);
       }
     } catch (err) {
       console.error('Fallback copy failed', err);
     }
   };
 
-  const getSocialUrl = (platform: string) => {
-    if (!session?.winner) return "";
-    const shareText = `🍿 We're watching ${session.winner.title} tonight! ${session.winner.matchScore}% group match on WatchWith. Pick your next movie night too 👉 ${window.location.origin}`;
-    const encodedText = encodeURIComponent(shareText);
+  const handleChallengeShare = async () => {
+    if (!session?.winner) return;
+    const shareText = `🏆 Our group scored ${session.winner.matchScore}% movie compatibility on WatchWith. Think your squad can beat that? Try it: ${window.location.origin}`;
     
-    if (platform === 'whatsapp') return `https://wa.me/?text=${encodedText}`;
-    if (platform === 'twitter') return `https://twitter.com/intent/tweet?text=${encodedText}`;
-    return "";
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'WatchWith Challenge',
+          text: shareText,
+          url: window.location.origin,
+        });
+      } catch (err) {
+        if (err instanceof Error && err.name !== 'AbortError') {
+          copyToClipboard(shareText, "Challenge copied! Send it to your squad.");
+        }
+      }
+    } else {
+      copyToClipboard(shareText, "Challenge copied! Send it to your squad.");
+    }
+  };
+
+  const handleInstagramShare = () => {
+    if (!session?.winner) return;
+    const caption = `🍿 Tonight we're watching ${session.winner.title} — ${session.winner.matchScore}% group match on @watchwith_app! Stop arguing about what to watch 👉 ${window.location.origin} #WatchWith #MovieNight #GroupMovieNight`;
+    copyToClipboard(caption, "Caption copied! 📋 Pro tip: Add a Link Sticker in your Instagram story with your WatchWith link for instant taps.");
+  };
+
+  const handleTwitterShare = () => {
+    if (!session?.winner) return;
+    const text = `🍿 My squad scored ${session.winner.matchScore}% movie compatibility on WatchWith. We're watching ${session.winner.title} tonight. What's your squad's score? 👉 ${window.location.origin} #WatchWith`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!session?.winner) return;
+    const text = `🍿 We just picked our movie night! Watching ${session.winner.title} — ${session.winner.matchScore}% group match. Try it with your group: ${window.location.origin}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCopyShare = () => {
+    if (!session?.winner) return;
+    const text = `🍿 Tonight's pick: ${session.winner.title} ⭐ ${session.winner.rating}/10 on TMDB 🎯 ${session.winner.matchScore}% group match 🎬 Pick yours: ${window.location.origin}`;
+    copyToClipboard(text, "Copied! Paste anywhere.");
   };
 
   const handleSocialShareInvite = (platform: string) => {
@@ -676,7 +714,7 @@ export default function Session() {
 
       {session.status === "waiting" && (
         <div className="space-y-12">
-          {session.expectedParticipants !== 0 && (
+          {session.expectedParticipants !== 1 && (
             <div className="bg-zinc-900 border border-zinc-800 p-8 rounded-[2rem] relative overflow-hidden">
               <div className="absolute top-0 right-0 p-8 opacity-10">
                 <Share2 className="w-24 h-24" />
@@ -740,15 +778,15 @@ export default function Session() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold flex items-center gap-2">
                 <Users className="text-orange-500" /> 
-                {session.expectedParticipants === 0 ? "Solo movie night" : "Who's here?"}
+                {session.expectedParticipants === 1 ? "Solo movie night" : "Who's here?"}
                 <span className="ml-2 px-2 py-0.5 bg-zinc-800 text-zinc-500 text-xs rounded-full">
                   {preferences.length}
                 </span>
               </h3>
-              {session?.expectedParticipants > 0 ? (
+              {session?.expectedParticipants > 1 ? (
                 <div className="text-right">
                   <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mb-1">
-                    {preferences.length} of {session.expectedParticipants} friends joined
+                    {preferences.length} of {session.expectedParticipants} have joined
                   </p>
                   <div className="w-32 h-1 bg-zinc-900 rounded-full overflow-hidden">
                     <motion.div 
@@ -758,7 +796,7 @@ export default function Session() {
                     />
                   </div>
                 </div>
-              ) : session?.expectedParticipants === 0 && (
+              ) : session?.expectedParticipants === 1 && (
                 <div className="text-right">
                   <p className="text-[10px] font-mono text-orange-500 uppercase tracking-widest mb-1">
                     Solo movie night
@@ -802,17 +840,17 @@ export default function Session() {
             <div className="pt-8 border-t border-zinc-900">
               <button 
                 onClick={startPicking} 
-                disabled={session.expectedParticipants === 0 ? preferences.length < 1 : preferences.length < 2}
+                disabled={session.expectedParticipants === 1 ? preferences.length < 1 : preferences.length < 2}
                 className={cn(
                   "w-full font-black py-5 rounded-2xl text-xl uppercase tracking-tight flex items-center justify-center gap-3 transition-all",
-                  (session.expectedParticipants === 0 ? preferences.length >= 1 : preferences.length >= 2)
+                  (session.expectedParticipants === 1 ? preferences.length >= 1 : preferences.length >= 2)
                     ? "bg-white text-black hover:bg-orange-500" 
                     : "bg-zinc-900 text-zinc-600 cursor-not-allowed opacity-50"
                 )}
               >
                 Find our movie <ChevronRight className="w-6 h-6" />
               </button>
-              {session.expectedParticipants === 0 ? (
+              {session.expectedParticipants === 1 ? (
                 <p className="text-center text-zinc-600 text-[10px] font-mono uppercase tracking-widest mt-4">
                   Ready to start solo!
                 </p>
@@ -822,7 +860,7 @@ export default function Session() {
                 </p>
               ) : session?.expectedParticipants > preferences.length ? (
                 <p className="text-center text-orange-500/60 text-[10px] font-mono uppercase tracking-widest mt-4 animate-pulse">
-                  Still waiting for {session.expectedParticipants - preferences.length} more friends — start now or wait for everyone?
+                  Still waiting for {session.expectedParticipants - preferences.length} more — start now or wait for everyone?
                 </p>
               ) : (
                 <p className="text-center text-zinc-600 text-[10px] font-mono uppercase tracking-widest mt-4">
@@ -918,25 +956,25 @@ export default function Session() {
                 {preferences.every(p => p.submitted) ? "Everyone is Ready!" : "Preferences Submitted!"}
               </h3>
               
-                  {session?.expectedParticipants > 0 ? (
+                  {session?.expectedParticipants > 1 ? (
                     <div className="max-w-xs mx-auto mb-6">
                       <div className="flex justify-between items-end mb-2">
                         <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                          {preferences.filter(p => p.submitted).length} of {session.expectedParticipants} friends voted
+                          {preferences.filter(p => p.submitted).length} of {preferences.length} have voted
                         </p>
                         <p className="text-xs font-bold text-orange-500">
-                          {Math.round(Math.min((preferences.filter(p => p.submitted).length / session.expectedParticipants) * 100, 100))}%
+                          {Math.round(Math.min((preferences.filter(p => p.submitted).length / preferences.length) * 100, 100))}%
                         </p>
                       </div>
                       <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
-                          animate={{ width: `${Math.min((preferences.filter(p => p.submitted).length / session.expectedParticipants) * 100, 100)}%` }}
+                          animate={{ width: `${Math.min((preferences.filter(p => p.submitted).length / preferences.length) * 100, 100)}%` }}
                           className="h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"
                         />
                       </div>
                     </div>
-                  ) : session?.expectedParticipants === 0 && (
+                  ) : session?.expectedParticipants === 1 && (
                     <div className="max-w-xs mx-auto mb-6">
                       <p className="text-[10px] font-mono text-orange-500 uppercase tracking-widest mb-2">
                         Solo movie night
@@ -960,7 +998,7 @@ export default function Session() {
                   {(() => {
                     const votedCount = preferences.filter(p => p.submitted).length;
                     const totalJoined = preferences.length;
-                    const isSolo = session.expectedParticipants === 0;
+                    const isSolo = session.expectedParticipants === 1;
 
                     let message = "";
                     let buttonStyle = "";
@@ -979,7 +1017,7 @@ export default function Session() {
                       buttonStyle = "bg-green-500 text-black hover:bg-white scale-110 shadow-[0_0_30px_rgba(34,197,94,0.3)]";
                       isDisabled = false;
                     } else {
-                      message = `${votedCount} of ${totalJoined} friends have voted. Start now or wait for everyone?`;
+                      message = `${votedCount} of ${totalJoined} have voted. Start now or wait for everyone?`;
                       buttonStyle = "bg-orange-500 text-black hover:bg-white scale-110 shadow-[0_0_30px_rgba(249,115,22,0.3)]";
                       isDisabled = false;
                     }
@@ -1018,10 +1056,10 @@ export default function Session() {
         <div className="space-y-12">
           <div className="text-center space-y-4">
             <h3 className="text-4xl font-black italic uppercase tracking-tighter text-shadow-premium">
-              {session.expectedParticipants === 0 ? "Top Picks for You" : "Top Picks for Your Group"}
+              {session.expectedParticipants === 1 ? "Top Picks for You" : "Top Picks for Your Group"}
             </h3>
             <p className="text-zinc-500 font-mono text-xs uppercase tracking-[0.2em]">
-              {session.expectedParticipants === 0 ? "Based on your preferences and streaming services" : "Based on your collective preferences and streaming services"}
+              {session.expectedParticipants === 1 ? "Based on your preferences and streaming services" : "Based on your collective preferences and streaming services"}
             </p>
           </div>
 
@@ -1032,8 +1070,8 @@ export default function Session() {
                 <Film className="w-6 h-6 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
               <div className="text-center">
-                <p className="text-white font-bold text-lg mb-1">{session.expectedParticipants === 0 ? "Analyzing your vibes..." : "Analyzing group vibes..."}</p>
-                <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">{session.expectedParticipants === 0 ? "Fetching the best movies for you" : "Fetching the best movies for the group"}</p>
+                <p className="text-white font-bold text-lg mb-1">{session.expectedParticipants === 1 ? "Analyzing your vibes..." : "Analyzing group vibes..."}</p>
+                <p className="text-zinc-500 font-mono text-[10px] uppercase tracking-widest">{session.expectedParticipants === 1 ? "Fetching the best movies for you" : "Fetching the best movies for the group"}</p>
               </div>
             </div>
           ) : (
@@ -1135,12 +1173,12 @@ export default function Session() {
           <div className="text-center space-y-4 mb-12">
             <h3 className="text-4xl font-black italic uppercase tracking-tighter text-shadow-premium">
               {session.status === "winner" 
-                ? (session.expectedParticipants === 0 ? "Your Winner!" : "We Have a Winner!") 
-                : (session.expectedParticipants === 0 ? "Top Picks for You" : "Top Picks for Your Group")}
+                ? (session.expectedParticipants === 1 ? "Your Winner!" : "We Have a Winner!") 
+                : (session.expectedParticipants === 1 ? "Top Picks for You" : "Top Picks for Your Group")}
             </h3>
             {session.status === "voting" && (
               <p className="text-zinc-500 font-mono text-xs uppercase tracking-[0.2em]">
-                {session.expectedParticipants === 0 ? "Vote for the movie you want to watch tonight" : "Vote for the movie you want to watch tonight"}
+                {session.expectedParticipants === 1 ? "Vote for the movie you want to watch tonight" : "Vote for the movie you want to watch tonight"}
               </p>
             )}
           </div>
@@ -1156,9 +1194,9 @@ export default function Session() {
                   ))}
                 </div>
                 <span className="font-bold text-sm tracking-tight">
-                  {session.expectedParticipants === 0 
+                  {session.expectedParticipants === 1 
                     ? (votes.filter(v => v.movieId).length > 0 ? "You've voted!" : "Waiting for your vote...")
-                    : `${votes.filter(v => v.movieId).length} of ${preferences.length} friends voted`}
+                    : `${votes.filter(v => v.movieId).length} of ${preferences.length} have voted`}
                 </span>
               </div>
               {userId === "creator" && (
@@ -1228,43 +1266,81 @@ export default function Session() {
                 </div>
               </motion.div>
               
-              <div className="space-y-4">
+              <div className="space-y-8 max-w-2xl mx-auto">
+                {/* Section 1: Main Share */}
                 <div className="flex justify-center">
                   <button 
                     onClick={handleShare}
-                    className="flex items-center gap-2 px-8 py-4 bg-orange-500 text-black rounded-2xl font-black uppercase tracking-tight hover:bg-orange-400 transition-all shadow-lg shadow-orange-500/20"
+                    className="flex items-center gap-2 px-12 py-5 bg-white text-black rounded-[2rem] font-black uppercase tracking-tight hover:bg-orange-500 transition-all shadow-[0_20px_40px_rgba(0,0,0,0.3)] group"
                   >
-                    <Share2 className="w-5 h-5" />
+                    <Share2 className="w-6 h-6 group-hover:rotate-12 transition-transform" />
                     Share tonight's pick 🍿
                   </button>
                 </div>
 
-                <div className="flex justify-center gap-3">
-                  <a 
-                    href={getSocialUrl('whatsapp')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-[#25D366] hover:border-[#25D366]/50 transition-all text-xs font-bold"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    WhatsApp
-                  </a>
-                  <a 
-                    href={getSocialUrl('twitter')}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-[#1DA1F2] hover:border-[#1DA1F2]/50 transition-all text-xs font-bold"
-                  >
-                    <Twitter className="w-3.5 h-3.5" />
-                    Twitter
-                  </a>
-                  <button 
-                    onClick={() => copyToClipboard(`🍿 We're watching ${session.winner.title} tonight! ${session.winner.matchScore}% group match on WatchWith. Pick your next movie night too 👉 ${window.location.origin}`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 hover:text-white hover:border-zinc-600 transition-all text-xs font-bold"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copied!" : "Copy Link"}
-                  </button>
+                {/* Section 2: Challenge Card */}
+                <div className="bg-zinc-900 border-2 border-orange-500/30 rounded-[2.5rem] p-8 text-center space-y-4 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative z-10">
+                    <div className="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Trophy className="w-8 h-8 text-orange-500" />
+                    </div>
+                    <h4 className="text-2xl font-black italic uppercase tracking-tighter text-white">
+                      Your group scored {session.winner.matchScore}% compatibility
+                    </h4>
+                    <p className="text-zinc-500 font-mono text-xs uppercase tracking-widest">
+                      Challenge another group to beat it!
+                    </p>
+                    <button 
+                      onClick={handleChallengeShare}
+                      className="mt-6 px-8 py-3 bg-orange-500 text-black rounded-xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all flex items-center gap-2 mx-auto"
+                    >
+                      Send challenge 🏆
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 3: Post your pick */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="h-px flex-1 bg-zinc-800" />
+                    <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em] whitespace-nowrap">Post your pick 📱</h4>
+                    <div className="h-px flex-1 bg-zinc-800" />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <button 
+                      onClick={handleInstagramShare}
+                      className="flex flex-col items-center gap-3 p-6 bg-zinc-900 rounded-3xl border border-zinc-800 hover:border-pink-500/50 hover:bg-pink-500/5 transition-all group"
+                    >
+                      <Instagram className="w-6 h-6 text-zinc-500 group-hover:text-pink-500 transition-colors" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-white">Instagram</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleTwitterShare}
+                      className="flex flex-col items-center gap-3 p-6 bg-zinc-900 rounded-3xl border border-zinc-800 hover:border-blue-400/50 hover:bg-blue-400/5 transition-all group"
+                    >
+                      <Twitter className="w-6 h-6 text-zinc-500 group-hover:text-blue-400 transition-colors" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-white">Twitter</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleWhatsAppShare}
+                      className="flex flex-col items-center gap-3 p-6 bg-zinc-900 rounded-3xl border border-zinc-800 hover:border-green-500/50 hover:bg-green-500/5 transition-all group"
+                    >
+                      <MessageCircle className="w-6 h-6 text-zinc-500 group-hover:text-green-500 transition-colors" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-white">WhatsApp</span>
+                    </button>
+                    
+                    <button 
+                      onClick={handleCopyShare}
+                      className="flex flex-col items-center gap-3 p-6 bg-zinc-900 rounded-3xl border border-zinc-800 hover:border-white/50 hover:bg-white/5 transition-all group"
+                    >
+                      <Copy className="w-6 h-6 text-zinc-500 group-hover:text-white transition-colors" />
+                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-white">Copy</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1403,6 +1479,24 @@ export default function Session() {
           )}
         </div>
       )}
+
+      <AnimatePresence>
+        {copied && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-orange-500 text-black px-6 py-4 rounded-2xl font-bold shadow-[0_20px_40px_rgba(249,115,22,0.3)] flex items-center gap-3 w-[90%] max-w-md"
+          >
+            <div className="flex-shrink-0">
+              <Check className="w-5 h-5" />
+            </div>
+            <p className="text-sm leading-tight">
+              {copyMessage}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showFeedbackToast && (
