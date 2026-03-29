@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0a0a0a;
+  --color-foreground: #ffffff;
+}
+
+:root {
+  background-color: #0a0a0a;
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0a0a0a;
+  color: #ffffff;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(var(--rotate)); }
+  50% { transform: translateY(-15px) rotate(var(--rotate)); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.text-shadow-premium {
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}

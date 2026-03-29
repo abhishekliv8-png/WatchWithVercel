@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "Session": {
+      "title": "Session",
+      "description": "A group movie night session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique session ID." },
+        "creatorName": { "type": "string", "description": "Name of the person who created the session." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the session was created." },
+        "status": { "type": "string", "enum": ["waiting", "picking", "results", "voting", "winner"], "description": "Current status of the session." },
+        "expectedParticipants": { "type": "integer", "description": "The number of friends expected to join." },
+        "movies": { "type": "array", "items": { "type": "object" }, "description": "List of recommended movies." },
+        "winner": { "type": "object", "description": "The winning movie." }
+      },
+      "required": ["id", "creatorName", "createdAt", "status"]
+    },
+    "UserPreference": {
+      "title": "UserPreference",
+      "description": "Preferences for a single user in a session.",
+      "type": "object",
+      "properties": {
+        "userName": { "type": "string", "description": "Name of the user." },
+        "genres": { "type": "array", "items": { "type": "integer" }, "description": "List of TMDB genre IDs." },
+        "services": { "type": "array", "items": { "type": "string" }, "description": "List of streaming service IDs." },
+        "submitted": { "type": "boolean", "description": "Whether the user has submitted their preferences." }
+      },
+      "required": ["userName", "genres", "services", "submitted"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "A vote for a movie in a session.",
+      "type": "object",
+      "properties": {
+        "movieId": { "type": "integer", "description": "ID of the movie being voted for." }
+      },
+      "required": ["movieId"]
+    },
+    "Feedback": {
+      "title": "Feedback",
+      "description": "User feedback about the app experience.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string", "description": "ID of the session (optional)." },
+        "rating": { "type": "integer", "description": "Rating from 1 to 5." },
+        "comment": { "type": "string", "description": "User's feedback comment." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the feedback was submitted." },
+        "userName": { "type": "string", "description": "Name of the user." }
+      },
+      "required": ["rating", "comment", "createdAt", "userName"]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "The main session document."
+    },
+    "/sessions/{sessionId}/preferences/{userId}": {
+      "schema": "UserPreference",
+      "description": "User preferences within a session."
+    },
+    "/sessions/{sessionId}/votes/{userId}": {
+      "schema": "Vote",
+      "description": "User votes within a session."
+    },
+    "/feedback/{feedbackId}": {
+      "schema": "Feedback",
+      "description": "User feedback submissions."
+    }
+  }
+}

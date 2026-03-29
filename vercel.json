@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/recommendations", "destination": "/api/recommendations" },
+    { "source": "/api/movies/popular", "destination": "/api/movies/popular" },
+    { "source": "/api/config", "destination": "/api/config" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

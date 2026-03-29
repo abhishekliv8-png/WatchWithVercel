@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return true; // Sessions are identified by unique IDs, no login needed
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['id', 'creatorName', 'createdAt', 'status']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.creatorName is string && data.creatorName.size() > 0 &&
+             data.status in ['waiting', 'picking', 'results', 'voting', 'winner'];
+    }
+
+    function isValidPreference(data) {
+      return data.keys().hasAll(['userName', 'genres', 'services', 'submitted']) &&
+             data.userName is string && data.userName.size() > 0 &&
+             data.genres is list &&
+             data.services is list &&
+             data.submitted is bool;
+    }
+
+    function isValidVote(data) {
+      return data.keys().hasAll(['movieId']) &&
+             (data.movieId == null || data.movieId is number);
+    }
+
+    function isValidFeedback(data) {
+      return data.keys().hasAll(['rating', 'comment', 'createdAt', 'userName', 'sessionId']) &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string &&
+             data.userName is string && data.userName.size() > 0 &&
+             data.sessionId is string && data.sessionId.size() > 0;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow create: if isValidSession(request.resource.data);
+      allow update: if true; // Allow updates for movies, winners, and status
+      
+      match /preferences/{userId} {
+        allow read: if true;
+        allow create: if isValidPreference(request.resource.data);
+        allow update: if isValidPreference(request.resource.data);
+      }
+
+      match /votes/{userId} {
+        allow read: if true;
+        allow create: if isValidVote(request.resource.data);
+        allow update: if isValidVote(request.resource.data);
+      }
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isValidFeedback(request.resource.data);
+      allow read: if false;
+    }
+  }
+}
